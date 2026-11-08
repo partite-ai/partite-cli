@@ -21,8 +21,7 @@ Give a key in one of these ways, safest first:
   --api-key VALUE       works, but the key can end up in your shell history
 
 In a spec file, set api_key_env: NAME, or api_key: ${NAME} to read an
-environment variable. The same goes for api_token (openai_compatible) and
-service_account_key (vertex).`
+environment variable. The same goes for api_token (openai_compatible).`
 
 var envRef = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 

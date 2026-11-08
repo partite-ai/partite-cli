@@ -54,16 +54,7 @@ type OpenAICompatibleConfig struct {
 }
 
 type GoogleGenAIConfig struct {
-	Gemini *KeyConfig    `json:"gemini,omitempty"`
-	Vertex *VertexConfig `json:"vertex,omitempty"`
-}
-
-type VertexConfig struct {
-	ProjectID            string `json:"project_id"`
-	Location             string `json:"location"`
-	ServiceAccountKey    string `json:"service_account_key,omitempty"`
-	ServiceAccountKeyEnv string `json:"service_account_key_env,omitempty"`
-	ServiceAccountKeySet bool   `json:"service_account_key_set,omitempty"`
+	Gemini *KeyConfig `json:"gemini,omitempty"`
 }
 
 // Kinds of provider, as the --type flag names them.
@@ -74,10 +65,9 @@ const (
 	kindFireworks        = "fireworks"
 	kindOpenAICompatible = "openai-compatible"
 	kindGemini           = "gemini"
-	kindVertex           = "vertex"
 )
 
-var kinds = []string{kindAnthropic, kindOpenAI, kindOpenAICompatible, kindFireworks, kindCerebras, kindGemini, kindVertex}
+var kinds = []string{kindAnthropic, kindOpenAI, kindOpenAICompatible, kindFireworks, kindCerebras, kindGemini}
 
 var kindTypes = map[string]gql.ModelProviderType{
 	kindAnthropic:        gql.ModelProviderTypeAnthropic,
@@ -86,7 +76,6 @@ var kindTypes = map[string]gql.ModelProviderType{
 	kindFireworks:        gql.ModelProviderTypeFireworks,
 	kindOpenAICompatible: gql.ModelProviderTypeOpenAiCompatible,
 	kindGemini:           gql.ModelProviderTypeGoogleGenAi,
-	kindVertex:           gql.ModelProviderTypeGoogleGenAi,
 }
 
 // TypeName is the short name of a provider type, such as openai-compatible.
@@ -125,16 +114,10 @@ func (p *Provider) kind() (string, error) {
 		set = append(set, kindOpenAICompatible)
 	}
 	if g := p.GoogleGenAI; g != nil {
-		switch {
-		case g.Gemini != nil && g.Vertex != nil:
-			return "", cmdutil.UsageError("google_genai takes gemini or vertex, not both")
-		case g.Gemini != nil:
-			set = append(set, kindGemini)
-		case g.Vertex != nil:
-			set = append(set, kindVertex)
-		default:
-			return "", cmdutil.UsageError("google_genai needs a gemini or a vertex block")
+		if g.Gemini == nil {
+			return "", cmdutil.UsageError("google_genai needs a gemini block")
 		}
+		set = append(set, kindGemini)
 	}
 	switch len(set) {
 	case 0:
@@ -177,8 +160,6 @@ func (p *Provider) setKind(kind string) {
 		p.OpenAICompatible = &OpenAICompatibleConfig{}
 	case kindGemini:
 		p.GoogleGenAI = &GoogleGenAIConfig{Gemini: &KeyConfig{}}
-	case kindVertex:
-		p.GoogleGenAI = &GoogleGenAIConfig{Vertex: &VertexConfig{}}
 	}
 }
 
@@ -191,9 +172,6 @@ func (p *Provider) settings() string {
 	}
 	if p.OpenAICompatible != nil {
 		s += "|" + p.OpenAICompatible.URL
-	}
-	if p.GoogleGenAI != nil && p.GoogleGenAI.Vertex != nil {
-		s += "|" + p.GoogleGenAI.Vertex.ProjectID + "|" + p.GoogleGenAI.Vertex.Location
 	}
 	return s
 }
@@ -208,8 +186,6 @@ func (p *Provider) secretStatus() (label, status string) {
 	switch k {
 	case kindOpenAICompatible:
 		label, set = "API token", p.OpenAICompatible.APITokenSet
-	case kindVertex:
-		label, set = "Service account key", p.GoogleGenAI.Vertex.ServiceAccountKeySet
 	default:
 		label, set = "API key", p.keyConfig(k).APIKeySet
 	}
@@ -223,8 +199,6 @@ func secretLabel(kind string) (label, flag string) {
 	switch kind {
 	case kindOpenAICompatible:
 		return "API token", "--api-key"
-	case kindVertex:
-		return "Vertex service account key", "--service-account-key"
 	case kindOpenAI:
 		return "OpenAI API key", "--api-key"
 	}
@@ -256,9 +230,6 @@ func fromAPI(d gql.ModelProviderDetails) Provider {
 		if c.Gemini != nil {
 			p.GoogleGenAI.Gemini = &KeyConfig{APIKeySet: c.Gemini.ApiKeySet}
 		}
-		if c.Vertex != nil {
-			p.GoogleGenAI.Vertex = &VertexConfig{ProjectID: c.Vertex.ProjectID, Location: c.Vertex.Location, ServiceAccountKeySet: c.Vertex.ServiceAccountKeySet}
-		}
 	}
 	return p
 }
@@ -282,8 +253,6 @@ func providerConfig(app *cmdutil.App, spec Provider, cur *Provider) (gql.ModelPr
 	switch kind {
 	case kindOpenAICompatible:
 		secret, err = readSecret(app, label, spec.OpenAICompatible.APIToken, spec.OpenAICompatible.APITokenEnv)
-	case kindVertex:
-		secret, err = readSecret(app, label, spec.GoogleGenAI.Vertex.ServiceAccountKey, spec.GoogleGenAI.Vertex.ServiceAccountKeyEnv)
 	default:
 		k := spec.keyConfig(kind)
 		secret, err = readSecret(app, label, k.APIKey, k.APIKeyEnv)
@@ -332,14 +301,6 @@ func providerConfig(app *cmdutil.App, spec Provider, cur *Provider) (gql.ModelPr
 		}
 	case kindGemini:
 		cfg.GoogleGenAI = &gql.ModelProviderConfigInputGoogleGenAI{Gemini: &gql.ModelProviderConfigInputGoogleGenAIGeminiApi{ApiKey: secret}}
-	case kindVertex:
-		v := spec.GoogleGenAI.Vertex
-		if v.ProjectID == "" || v.Location == "" {
-			return "", nil, cmdutil.UsageError("a vertex provider needs a project id and a location; pass --project-id and --location")
-		}
-		cfg.GoogleGenAI = &gql.ModelProviderConfigInputGoogleGenAI{Vertex: &gql.ModelProviderConfigInputGoogleGenAIVertex{
-			ServiceAccountKey: secret, ProjectID: v.ProjectID, Location: v.Location,
-		}}
 	}
 	return typ, cfg, nil
 }
@@ -417,11 +378,6 @@ var Providers = &cmdutil.Resource[Provider]{
 		if p.Fireworks != nil {
 			f = append(f, output.Field{Label: "Account id", Value: p.Fireworks.AccountID})
 		}
-		if p.GoogleGenAI != nil && p.GoogleGenAI.Vertex != nil {
-			f = append(f,
-				output.Field{Label: "Project id", Value: p.GoogleGenAI.Vertex.ProjectID},
-				output.Field{Label: "Location", Value: p.GoogleGenAI.Vertex.Location})
-		}
 		return append(f,
 			output.Field{Label: secretLabel, Value: status},
 			output.Field{Label: "Tags", Value: cmdutil.FormatTags(p.Tags)},
@@ -437,7 +393,7 @@ func New(app *cmdutil.App) *cobra.Command {
 		Aliases: []string{"model-providers", "provider", "providers"},
 		Short:   "Manage model providers: the credentials for a model service",
 		Long: `A model provider holds the credentials for one model service, such as
-Anthropic, OpenAI, Gemini, Vertex, Fireworks, Cerebras or any service with an
+Anthropic, OpenAI, Gemini, Fireworks, Cerebras or any service with an
 OpenAI-compatible API. Model profiles and embedding profiles name a provider.
 
 Types: ` + strings.Join(kinds, ", ") + `
@@ -534,12 +490,9 @@ func update(ctx context.Context, app *cmdutil.App, id string, spec, cur Provider
 
 // configFlags are the flags that set a provider's type, settings and secret.
 type configFlags struct {
-	kind                 string
-	apiKey, apiKeyEnv    string
-	url, accountID       string
-	projectID, location  string
-	serviceAccountKey    string
-	serviceAccountKeyEnv string
+	kind              string
+	apiKey, apiKeyEnv string
+	url, accountID    string
 }
 
 func (f *configFlags) add(cmd *cobra.Command, withType bool) {
@@ -552,12 +505,7 @@ func (f *configFlags) add(cmd *cobra.Command, withType bool) {
 	fl.StringVar(&f.apiKeyEnv, "api-key-env", "", "read the API key or token from this environment variable")
 	fl.StringVar(&f.url, "url", "", "base URL of the API (openai-compatible)")
 	fl.StringVar(&f.accountID, "account-id", "", "Fireworks account id; the model list then includes the account's models (fireworks)")
-	fl.StringVar(&f.projectID, "project-id", "", "Google Cloud project id (vertex)")
-	fl.StringVar(&f.location, "location", "", "Google Cloud location, such as us-central1 (vertex)")
-	fl.StringVar(&f.serviceAccountKey, "service-account-key", "", "service account key JSON: @FILE or @- (vertex)")
-	fl.StringVar(&f.serviceAccountKeyEnv, "service-account-key-env", "", "read the service account key JSON from this environment variable (vertex)")
 	cmd.MarkFlagsMutuallyExclusive("api-key", "api-key-env")
-	cmd.MarkFlagsMutuallyExclusive("service-account-key", "service-account-key-env")
 }
 
 // apply writes the flags that were passed into p.
@@ -575,7 +523,7 @@ func (f *configFlags) apply(app *cmdutil.App, cmd *cobra.Command, p *Provider) e
 		}
 	}
 	changed := false
-	for _, name := range []string{"api-key", "api-key-env", "url", "account-id", "project-id", "location", "service-account-key", "service-account-key-env"} {
+	for _, name := range []string{"api-key", "api-key-env", "url", "account-id"} {
 		changed = changed || fl.Changed(name)
 	}
 	if !changed {
@@ -592,21 +540,14 @@ func (f *configFlags) apply(app *cmdutil.App, cmd *cobra.Command, p *Provider) e
 		return nil
 	}
 	for flag, ok := range map[string]bool{
-		"api-key":                 kind != kindVertex,
-		"api-key-env":             kind != kindVertex,
-		"url":                     kind == kindOpenAICompatible,
-		"account-id":              kind == kindFireworks,
-		"project-id":              kind == kindVertex,
-		"location":                kind == kindVertex,
-		"service-account-key":     kind == kindVertex,
-		"service-account-key-env": kind == kindVertex,
+		"url":        kind == kindOpenAICompatible,
+		"account-id": kind == kindFireworks,
 	} {
 		if err := only(flag, ok); err != nil {
 			return err
 		}
 	}
 	warnLiteral(app, "--api-key", f.apiKey)
-	warnLiteral(app, "--service-account-key", f.serviceAccountKey)
 	switch kind {
 	case kindOpenAICompatible:
 		o := p.OpenAICompatible
@@ -615,17 +556,6 @@ func (f *configFlags) apply(app *cmdutil.App, cmd *cobra.Command, p *Provider) e
 		}
 		if fl.Changed("api-key") || fl.Changed("api-key-env") {
 			o.APIToken, o.APITokenEnv = f.apiKey, f.apiKeyEnv
-		}
-	case kindVertex:
-		v := p.GoogleGenAI.Vertex
-		if fl.Changed("project-id") {
-			v.ProjectID = f.projectID
-		}
-		if fl.Changed("location") {
-			v.Location = f.location
-		}
-		if fl.Changed("service-account-key") || fl.Changed("service-account-key-env") {
-			v.ServiceAccountKey, v.ServiceAccountKeyEnv = f.serviceAccountKey, f.serviceAccountKeyEnv
 		}
 	default:
 		if fl.Changed("api-key") || fl.Changed("api-key-env") {
@@ -659,7 +589,6 @@ refuses a key the provider rejects.
 		Example: `  partite model-provider create my-anthropic --type anthropic --api-key-env ANTHROPIC_API_KEY
   op read op://ai/openai/key | partite model-provider create my-openai --type openai --api-key @-
   partite model-provider create local-llm --type openai-compatible --url http://localhost:11434/v1
-  partite model-provider create my-vertex --type vertex --project-id my-proj --location us-central1 --service-account-key @key.json
   partite model-provider create my-gemini --type gemini --probe   # asks for the key`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -752,7 +681,7 @@ so the key is needed again; at a terminal you are asked for it.
 				return err
 			}
 			changed := false
-			for _, name := range []string{"name", "description", "tag", "api-key", "api-key-env", "url", "account-id", "project-id", "location", "service-account-key", "service-account-key-env"} {
+			for _, name := range []string{"name", "description", "tag", "api-key", "api-key-env", "url", "account-id"} {
 				changed = changed || f.Changed(name)
 			}
 			if !changed {

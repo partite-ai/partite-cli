@@ -303,11 +303,6 @@ fragment ModelProviderDetails on ModelProvider {
       gemini {
         apiKeySet
       }
-      vertex {
-        serviceAccountKeySet
-        projectID
-        location
-      }
     }
   }
   tags

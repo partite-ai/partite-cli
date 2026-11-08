@@ -106,17 +106,10 @@ type ModelProviderConfigInputOpenAI struct {
 
 type ModelProviderConfigInputGoogleGenAI struct {
 	Gemini *ModelProviderConfigInputGoogleGenAIGeminiApi `json:"gemini,omitempty"`
-	Vertex *ModelProviderConfigInputGoogleGenAIVertex    `json:"vertex,omitempty"`
 }
 
 type ModelProviderConfigInputGoogleGenAIGeminiApi struct {
 	ApiKey string `json:"apiKey"`
-}
-
-type ModelProviderConfigInputGoogleGenAIVertex struct {
-	ServiceAccountKey string `json:"serviceAccountKey"`
-	ProjectID         string `json:"projectID"`
-	Location          string `json:"location"`
 }
 
 type ModelProviderConfigInputOpenAICompatible struct {

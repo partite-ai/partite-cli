@@ -2958,7 +2958,7 @@ func (v *EmbeddingProfileDetails) GetUpdatedAt() string { return v.UpdatedAt }
 // EmbeddingProfileDetailsConfigurationEmbeddingProfileConfig includes the requested fields of the GraphQL type EmbeddingProfileConfig.
 // The GraphQL type's documentation follows.
 //
-// What an embedding profile holds. taskType is accepted by Google only.
+// What an embedding profile holds. taskType is accepted by Google and by the Cohere models on Amazon Bedrock.
 type EmbeddingProfileDetailsConfigurationEmbeddingProfileConfig struct {
 	Model          string  `json:"model"`
 	Dimensions     int     `json:"dimensions"`
@@ -14154,6 +14154,7 @@ func (v *ModelProviderDetails) __premarshalJSON() (*__premarshalModelProviderDet
 //
 // ModelProviderDetailsProviderConfigModelProviderConfig is implemented by the following types:
 // ModelProviderDetailsProviderConfigModelProviderConfigAnthropic
+// ModelProviderDetailsProviderConfigModelProviderConfigBedrock
 // ModelProviderDetailsProviderConfigModelProviderConfigCerebras
 // ModelProviderDetailsProviderConfigModelProviderConfigFireworks
 // ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAI
@@ -14166,6 +14167,8 @@ type ModelProviderDetailsProviderConfigModelProviderConfig interface {
 }
 
 func (v *ModelProviderDetailsProviderConfigModelProviderConfigAnthropic) implementsGraphQLInterfaceModelProviderDetailsProviderConfigModelProviderConfig() {
+}
+func (v *ModelProviderDetailsProviderConfigModelProviderConfigBedrock) implementsGraphQLInterfaceModelProviderDetailsProviderConfigModelProviderConfig() {
 }
 func (v *ModelProviderDetailsProviderConfigModelProviderConfigCerebras) implementsGraphQLInterfaceModelProviderDetailsProviderConfigModelProviderConfig() {
 }
@@ -14194,6 +14197,9 @@ func __unmarshalModelProviderDetailsProviderConfigModelProviderConfig(b []byte, 
 	switch tn.TypeName {
 	case "ModelProviderConfigAnthropic":
 		*v = new(ModelProviderDetailsProviderConfigModelProviderConfigAnthropic)
+		return json.Unmarshal(b, *v)
+	case "ModelProviderConfigBedrock":
+		*v = new(ModelProviderDetailsProviderConfigModelProviderConfigBedrock)
 		return json.Unmarshal(b, *v)
 	case "ModelProviderConfigCerebras":
 		*v = new(ModelProviderDetailsProviderConfigModelProviderConfigCerebras)
@@ -14229,6 +14235,14 @@ func __marshalModelProviderDetailsProviderConfigModelProviderConfig(v *ModelProv
 		result := struct {
 			TypeName string `json:"__typename"`
 			*ModelProviderDetailsProviderConfigModelProviderConfigAnthropic
+		}{typename, v}
+		return json.Marshal(result)
+	case *ModelProviderDetailsProviderConfigModelProviderConfigBedrock:
+		typename = "ModelProviderConfigBedrock"
+
+		result := struct {
+			TypeName string `json:"__typename"`
+			*ModelProviderDetailsProviderConfigModelProviderConfigBedrock
 		}{typename, v}
 		return json.Marshal(result)
 	case *ModelProviderDetailsProviderConfigModelProviderConfigCerebras:
@@ -14298,6 +14312,19 @@ func (v *ModelProviderDetailsProviderConfigModelProviderConfigAnthropic) GetApiK
 	return v.ApiKeySet
 }
 
+// ModelProviderDetailsProviderConfigModelProviderConfigBedrock includes the requested fields of the GraphQL type ModelProviderConfigBedrock.
+// The GraphQL type's documentation follows.
+//
+// Amazon Bedrock. Exactly one of apiKey and staticKeys is set.
+type ModelProviderDetailsProviderConfigModelProviderConfigBedrock struct {
+	Typename *string `json:"__typename"`
+}
+
+// GetTypename returns ModelProviderDetailsProviderConfigModelProviderConfigBedrock.Typename, and is useful for accessing the field via an interface.
+func (v *ModelProviderDetailsProviderConfigModelProviderConfigBedrock) GetTypename() *string {
+	return v.Typename
+}
+
 // ModelProviderDetailsProviderConfigModelProviderConfigCerebras includes the requested fields of the GraphQL type ModelProviderConfigCerebras.
 type ModelProviderDetailsProviderConfigModelProviderConfigCerebras struct {
 	Typename  *string `json:"__typename"`
@@ -14341,7 +14368,6 @@ func (v *ModelProviderDetailsProviderConfigModelProviderConfigFireworks) GetAcco
 type ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAI struct {
 	Typename *string                                                                                                        `json:"__typename"`
 	Gemini   *ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIGeminiModelProviderConfigGoogleGenAIGeminiApi `json:"gemini"`
-	Vertex   *ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex                                        `json:"vertex"`
 }
 
 // GetTypename returns ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAI.Typename, and is useful for accessing the field via an interface.
@@ -14354,11 +14380,6 @@ func (v *ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAI) GetGe
 	return v.Gemini
 }
 
-// GetVertex returns ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAI.Vertex, and is useful for accessing the field via an interface.
-func (v *ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAI) GetVertex() *ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex {
-	return v.Vertex
-}
-
 // ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIGeminiModelProviderConfigGoogleGenAIGeminiApi includes the requested fields of the GraphQL type ModelProviderConfigGoogleGenAIGeminiApi.
 type ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIGeminiModelProviderConfigGoogleGenAIGeminiApi struct {
 	ApiKeySet bool `json:"apiKeySet"`
@@ -14367,28 +14388,6 @@ type ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIGeminiModel
 // GetApiKeySet returns ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIGeminiModelProviderConfigGoogleGenAIGeminiApi.ApiKeySet, and is useful for accessing the field via an interface.
 func (v *ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIGeminiModelProviderConfigGoogleGenAIGeminiApi) GetApiKeySet() bool {
 	return v.ApiKeySet
-}
-
-// ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex includes the requested fields of the GraphQL type ModelProviderConfigGoogleGenAIVertex.
-type ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex struct {
-	ServiceAccountKeySet bool   `json:"serviceAccountKeySet"`
-	ProjectID            string `json:"projectID"`
-	Location             string `json:"location"`
-}
-
-// GetServiceAccountKeySet returns ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex.ServiceAccountKeySet, and is useful for accessing the field via an interface.
-func (v *ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex) GetServiceAccountKeySet() bool {
-	return v.ServiceAccountKeySet
-}
-
-// GetProjectID returns ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex.ProjectID, and is useful for accessing the field via an interface.
-func (v *ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex) GetProjectID() string {
-	return v.ProjectID
-}
-
-// GetLocation returns ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex.Location, and is useful for accessing the field via an interface.
-func (v *ModelProviderDetailsProviderConfigModelProviderConfigGoogleGenAIVertex) GetLocation() string {
-	return v.Location
 }
 
 // ModelProviderDetailsProviderConfigModelProviderConfigOpenAI includes the requested fields of the GraphQL type ModelProviderConfigOpenAI.
@@ -14439,6 +14438,7 @@ const (
 	ModelProviderTypeOpenAiCompatible ModelProviderType = "OPEN_AI_COMPATIBLE"
 	ModelProviderTypeFireworks        ModelProviderType = "FIREWORKS"
 	ModelProviderTypeCerebras         ModelProviderType = "CEREBRAS"
+	ModelProviderTypeBedrock          ModelProviderType = "BEDROCK"
 )
 
 var AllModelProviderType = []ModelProviderType{
@@ -14448,6 +14448,7 @@ var AllModelProviderType = []ModelProviderType{
 	ModelProviderTypeOpenAiCompatible,
 	ModelProviderTypeFireworks,
 	ModelProviderTypeCerebras,
+	ModelProviderTypeBedrock,
 }
 
 // ModelSetDetails includes the GraphQL fields of ModelSet requested by the fragment ModelSetDetails.
@@ -24139,11 +24140,6 @@ fragment ModelProviderDetails on ModelProvider {
 			gemini {
 				apiKeySet
 			}
-			vertex {
-				serviceAccountKeySet
-				projectID
-				location
-			}
 		}
 	}
 	tags
@@ -27982,11 +27978,6 @@ fragment ModelProviderDetails on ModelProvider {
 			gemini {
 				apiKeySet
 			}
-			vertex {
-				serviceAccountKeySet
-				projectID
-				location
-			}
 		}
 	}
 	tags
@@ -31001,11 +30992,6 @@ fragment ModelProviderDetails on ModelProvider {
 			gemini {
 				apiKeySet
 			}
-			vertex {
-				serviceAccountKeySet
-				projectID
-				location
-			}
 		}
 	}
 	tags
@@ -32193,11 +32179,6 @@ fragment ModelProviderDetails on ModelProvider {
 		... on ModelProviderConfigGoogleGenAI {
 			gemini {
 				apiKeySet
-			}
-			vertex {
-				serviceAccountKeySet
-				projectID
-				location
 			}
 		}
 	}
