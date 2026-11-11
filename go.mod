@@ -1,6 +1,6 @@
 module github.com/partite-ai/partite-cli
 
-go 1.26.5
+go 1.27.4
 
 tool github.com/Khan/genqlient
 
