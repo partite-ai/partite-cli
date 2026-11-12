@@ -2,13 +2,10 @@ package workspace
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
-	"net/textproto"
 	"os"
 	"path"
 	"path/filepath"
@@ -120,9 +117,9 @@ func newUpload(app *cmdutil.App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "upload <workspace> <local-file> [remote-path]",
 		Short: "Upload a file to a workspace",
-		Long: `Upload a local file to a workspace, replacing any file at that path. The
-remote path defaults to the file's name in the root folder. A remote path that
-ends in / is a folder, and the file keeps its name.`,
+		Long: `Upload a local file to a workspace. It fails if a file already exists at
+that path. The remote path defaults to the file's name in the root folder. A
+remote path that ends in / is a folder, and the file keeps its name.`,
 		Example: `  partite workspace upload notes report.pdf
   partite workspace upload notes report.pdf /reports/
   partite workspace upload notes report.pdf /reports/2026-q3.pdf`,
@@ -165,95 +162,38 @@ ends in / is a folder, and the file keeps its name.`,
 	return cmd
 }
 
-const uploadWorkspaceFileQuery = `mutation UploadWorkspaceFile($id: WorkspaceID!, $conversationID: String, $folder: String!, $name: String!, $bytes: Upload!) {
-  uploadWorkspaceFile(id: $id, conversationID: $conversationID, folder: $folder, name: $name, bytes: $bytes) {
-    success
-    message
-  }
-}`
-
-// uploadFile sends a GraphQL multipart request, which genqlient cannot make.
-// The file is streamed rather than read into memory.
-func uploadFile(ctx context.Context, app *cmdutil.App, id, conversation, folder, name string, body io.Reader) error {
-	hc, err := app.HTTP()
+// uploadFile asks for an upload link and PUTs the file's bytes to it. The
+// file is streamed rather than read into memory, and may be as large as the
+// organization's storage allows.
+func uploadFile(ctx context.Context, app *cmdutil.App, id, conversation, folder, name string, f *os.File) error {
+	c, err := app.GQL()
 	if err != nil {
 		return err
 	}
-	operations, err := json.Marshal(map[string]any{
-		"query":         uploadWorkspaceFileQuery,
-		"operationName": "UploadWorkspaceFile",
-		"variables": map[string]any{
-			"id":             id,
-			"conversationID": cmdutil.OptString(conversation),
-			"folder":         folder,
-			"name":           name,
-			"bytes":          nil,
-		},
-	})
+	resp, err := gql.ToolsCreateWorkspaceFileUpload(ctx, c, id, cmdutil.OptString(conversation), folder, name)
 	if err != nil {
 		return err
 	}
-	pr, pw := io.Pipe()
-	mw := multipart.NewWriter(pw)
-	go func() {
-		err := func() error {
-			if err := mw.WriteField("operations", string(operations)); err != nil {
-				return err
-			}
-			if err := mw.WriteField("map", `{"0": ["variables.bytes"]}`); err != nil {
-				return err
-			}
-			h := make(textproto.MIMEHeader)
-			h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="0"; filename=%q`, name))
-			h.Set("Content-Type", "application/octet-stream")
-			part, err := mw.CreatePart(h)
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(part, body); err != nil {
-				return err
-			}
-			return mw.Close()
-		}()
-		pw.CloseWithError(err)
-	}()
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, app.BaseURL()+"/graphql", pr)
+	// The URL carries its own authorization, so no credentials are sent.
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, resp.CreateWorkspaceFileUpload.Url, f)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	resp, err := hc.Do(req)
+	// A regular file's length is known; anything else is sent chunked.
+	if st, err := f.Stat(); err == nil && st.Mode().IsRegular() {
+		req.ContentLength = st.Size()
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+	up, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
+	defer up.Body.Close()
+	if up.StatusCode/100 != 2 {
+		data, _ := io.ReadAll(io.LimitReader(up.Body, 64<<10))
+		return &cmdutil.StatusError{StatusCode: up.StatusCode, Body: strings.TrimSpace(string(data))}
 	}
-	if resp.StatusCode/100 != 2 {
-		return &cmdutil.StatusError{StatusCode: resp.StatusCode, Body: string(data)}
-	}
-	var parsed struct {
-		Data struct {
-			UploadWorkspaceFile struct {
-				Success bool    `json:"success"`
-				Message *string `json:"message"`
-			} `json:"uploadWorkspaceFile"`
-		} `json:"data"`
-		Errors []struct {
-			Message string `json:"message"`
-		} `json:"errors"`
-	}
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		return fmt.Errorf("read upload response: %w", err)
-	}
-	if len(parsed.Errors) > 0 {
-		return errors.New(parsed.Errors[0].Message)
-	}
-	r := parsed.Data.UploadWorkspaceFile
-	return operationError(r.Success, r.Message, "upload failed")
+	return nil
 }
 
 func newDownload(app *cmdutil.App) *cobra.Command {

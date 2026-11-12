@@ -17126,6 +17126,44 @@ func (v *ToolsCreateMcpConnectionResponse) GetCreateMcpConnection() ToolsMcpConn
 	return v.CreateMcpConnection
 }
 
+// ToolsCreateWorkspaceFileUploadCreateWorkspaceFileUpload includes the requested fields of the GraphQL type WorkspaceFileUpload.
+// The GraphQL type's documentation follows.
+//
+// A time-limited, unguessable URL for uploading one workspace file.
+type ToolsCreateWorkspaceFileUploadCreateWorkspaceFileUpload struct {
+	// PUT the file's bytes here. It carries its own authorization, so anyone holding it can make the file until it expires.
+	Url string `json:"url"`
+	// When the URL stops being redeemable. An upload already underway runs to completion.
+	ExpiresAt string `json:"expiresAt"`
+}
+
+// GetUrl returns ToolsCreateWorkspaceFileUploadCreateWorkspaceFileUpload.Url, and is useful for accessing the field via an interface.
+func (v *ToolsCreateWorkspaceFileUploadCreateWorkspaceFileUpload) GetUrl() string { return v.Url }
+
+// GetExpiresAt returns ToolsCreateWorkspaceFileUploadCreateWorkspaceFileUpload.ExpiresAt, and is useful for accessing the field via an interface.
+func (v *ToolsCreateWorkspaceFileUploadCreateWorkspaceFileUpload) GetExpiresAt() string {
+	return v.ExpiresAt
+}
+
+// ToolsCreateWorkspaceFileUploadResponse is returned by ToolsCreateWorkspaceFileUpload on success.
+type ToolsCreateWorkspaceFileUploadResponse struct {
+	// Mint a short-lived URL that makes one workspace file from the bytes PUT
+	// to it. The body may have a length or be chunked, and the file may be as
+	// large as the organization's storage allows. The response is 201 once the
+	// file is written; an upload that fails leaves no file. The folder must
+	// exist and the file must not.
+	//
+	// The URL authorizes itself, as a download URL does, so it is a bearer
+	// credential: treat it as a secret, and expect it to stop working at
+	// `expiresAt`.
+	CreateWorkspaceFileUpload ToolsCreateWorkspaceFileUploadCreateWorkspaceFileUpload `json:"createWorkspaceFileUpload"`
+}
+
+// GetCreateWorkspaceFileUpload returns ToolsCreateWorkspaceFileUploadResponse.CreateWorkspaceFileUpload, and is useful for accessing the field via an interface.
+func (v *ToolsCreateWorkspaceFileUploadResponse) GetCreateWorkspaceFileUpload() ToolsCreateWorkspaceFileUploadCreateWorkspaceFileUpload {
+	return v.CreateWorkspaceFileUpload
+}
+
 // ToolsCreateWorkspaceFolderCreateWorkspaceFolderOperationResult includes the requested fields of the GraphQL type OperationResult.
 type ToolsCreateWorkspaceFolderCreateWorkspaceFolderOperationResult struct {
 	Success bool    `json:"success"`
@@ -21107,6 +21145,26 @@ type __ToolsCreateMcpConnectionInput struct {
 
 // GetInput returns __ToolsCreateMcpConnectionInput.Input, and is useful for accessing the field via an interface.
 func (v *__ToolsCreateMcpConnectionInput) GetInput() NewMcpConnection { return v.Input }
+
+// __ToolsCreateWorkspaceFileUploadInput is used internally by genqlient
+type __ToolsCreateWorkspaceFileUploadInput struct {
+	Id             string  `json:"id"`
+	ConversationID *string `json:"conversationID,omitempty"`
+	Folder         string  `json:"folder"`
+	Name           string  `json:"name"`
+}
+
+// GetId returns __ToolsCreateWorkspaceFileUploadInput.Id, and is useful for accessing the field via an interface.
+func (v *__ToolsCreateWorkspaceFileUploadInput) GetId() string { return v.Id }
+
+// GetConversationID returns __ToolsCreateWorkspaceFileUploadInput.ConversationID, and is useful for accessing the field via an interface.
+func (v *__ToolsCreateWorkspaceFileUploadInput) GetConversationID() *string { return v.ConversationID }
+
+// GetFolder returns __ToolsCreateWorkspaceFileUploadInput.Folder, and is useful for accessing the field via an interface.
+func (v *__ToolsCreateWorkspaceFileUploadInput) GetFolder() string { return v.Folder }
+
+// GetName returns __ToolsCreateWorkspaceFileUploadInput.Name, and is useful for accessing the field via an interface.
+func (v *__ToolsCreateWorkspaceFileUploadInput) GetName() string { return v.Name }
 
 // __ToolsCreateWorkspaceFolderInput is used internally by genqlient
 type __ToolsCreateWorkspaceFolderInput struct {
@@ -33319,6 +33377,47 @@ func ToolsCreateMcpConnection(
 	}
 
 	data_ = &ToolsCreateMcpConnectionResponse{}
+	resp_ := &graphql.Response{Data: data_}
+
+	err_ = client_.MakeRequest(
+		ctx_,
+		req_,
+		resp_,
+	)
+
+	return data_, err_
+}
+
+// The mutation executed by ToolsCreateWorkspaceFileUpload.
+const ToolsCreateWorkspaceFileUpload_Operation = `
+mutation ToolsCreateWorkspaceFileUpload ($id: WorkspaceID!, $conversationID: String, $folder: String!, $name: String!) {
+	createWorkspaceFileUpload(workspaceID: $id, conversationID: $conversationID, folder: $folder, name: $name) {
+		url
+		expiresAt
+	}
+}
+`
+
+func ToolsCreateWorkspaceFileUpload(
+	ctx_ context.Context,
+	client_ graphql.Client,
+	id string,
+	conversationID *string,
+	folder string,
+	name string,
+) (data_ *ToolsCreateWorkspaceFileUploadResponse, err_ error) {
+	req_ := &graphql.Request{
+		OpName: "ToolsCreateWorkspaceFileUpload",
+		Query:  ToolsCreateWorkspaceFileUpload_Operation,
+		Variables: &__ToolsCreateWorkspaceFileUploadInput{
+			Id:             id,
+			ConversationID: conversationID,
+			Folder:         folder,
+			Name:           name,
+		},
+	}
+
+	data_ = &ToolsCreateWorkspaceFileUploadResponse{}
 	resp_ := &graphql.Response{Data: data_}
 
 	err_ = client_.MakeRequest(

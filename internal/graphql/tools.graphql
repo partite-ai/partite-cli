@@ -350,6 +350,13 @@ query ToolsWorkspaceFileDownload($id: WorkspaceID!, $conversationID: String, $fo
   }
 }
 
+mutation ToolsCreateWorkspaceFileUpload($id: WorkspaceID!, $conversationID: String, $folder: String!, $name: String!) {
+  createWorkspaceFileUpload(workspaceID: $id, conversationID: $conversationID, folder: $folder, name: $name) {
+    url
+    expiresAt
+  }
+}
+
 mutation ToolsCreateWorkspaceFolder($id: WorkspaceID!, $conversationID: String, $folder: String!, $name: String!) {
   createWorkspaceFolder(id: $id, conversationID: $conversationID, folder: $folder, name: $name) {
     success
