@@ -141,11 +141,11 @@ func newList(app *cmdutil.App) *cobra.Command {
 			filter.CreatedAfter, filter.CreatedBefore = cmdutil.OptString(after), cmdutil.OptString(before)
 			switch statusFlag {
 			case "":
-			case "active", "cancelled", "complete":
+			case "active", "cancelled", "complete", "failed":
 				s := gql.RequestStatus(strings.ToUpper(statusFlag))
 				filter.Status = &s
 			default:
-				return cmdutil.UsageError("--status must be active, cancelled or complete")
+				return cmdutil.UsageError("--status must be active, cancelled, complete or failed")
 			}
 			traces, err := cmdutil.ListAll(ctx, limit, func(ctx context.Context, first int, cursor *string) (cmdutil.Page[Summary], error) {
 				resp, err := gql.RuntimeListTraces(ctx, c, first, cursor, cmdutil.OptString(search), &filter)
@@ -181,10 +181,10 @@ func newList(app *cmdutil.App) *cobra.Command {
 	f.StringVar(&meshVersion, "mesh-version", "", "only traces of this mesh version (id)")
 	f.StringVar(&since, "since", "", "only traces created since then: a duration such as 6h or 2d, or a time")
 	f.StringVar(&until, "until", "", "only traces created before then: a duration such as 6h or 2d, or a time")
-	f.StringVar(&statusFlag, "status", "", "only traces with a request in this status: active, cancelled or complete")
+	f.StringVar(&statusFlag, "status", "", "only traces with a request in this status: active, cancelled, complete or failed")
 	f.StringVar(&search, "search", "", "only traces matching this text")
 	f.IntVar(&limit, "limit", 50, "most traces to list; 0 for all")
-	_ = cmd.RegisterFlagCompletionFunc("status", cobra.FixedCompletions([]string{"active", "cancelled", "complete"}, cobra.ShellCompDirectiveNoFileComp))
+	_ = cmd.RegisterFlagCompletionFunc("status", cobra.FixedCompletions([]string{"active", "cancelled", "complete", "failed"}, cobra.ShellCompDirectiveNoFileComp))
 	return cmd
 }
 
