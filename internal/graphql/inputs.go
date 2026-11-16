@@ -591,6 +591,25 @@ type UpdateJudgeMetric struct {
 	InputFields []NewJudgeInputField `json:"inputFields"`
 }
 
+type NewRubric struct {
+	Name        string            `json:"name"`
+	Description *string           `json:"description,omitempty"`
+	Metrics     []NewRubricMetric `json:"metrics"`
+}
+
+type NewRubricMetric struct {
+	ComputedMetricKey *string          `json:"computedMetricKey,omitempty"`
+	JudgeMetricID     *string          `json:"judgeMetricID,omitempty"`
+	Tags              json.RawMessage  `json:"tags,omitempty"`
+	TrialCount        *int             `json:"trialCount,omitempty"`
+	Complexity        *ModelComplexity `json:"complexity,omitempty"`
+	InputValues       *json.RawMessage `json:"inputValues,omitempty"`
+	ScoreFloor        *float64         `json:"scoreFloor,omitempty"`
+	ScoreCeiling      *float64         `json:"scoreCeiling,omitempty"`
+	LowerIsBetter     *bool            `json:"lowerIsBetter,omitempty"`
+	Weight            *float64         `json:"weight,omitempty"`
+}
+
 // UpdateRubricMetric keeps omitempty, unlike the inputs above: the API rejects
 // the scoring fields outright on a metric a model judges, so a field that does
 // not apply has to be left out rather than sent as null.
@@ -603,6 +622,7 @@ type UpdateRubricMetric struct {
 	ScoreCeiling  *float64         `json:"scoreCeiling,omitempty"`
 	LowerIsBetter *bool            `json:"lowerIsBetter,omitempty"`
 	Weight        *float64         `json:"weight,omitempty"`
+	Tags          json.RawMessage  `json:"tags,omitempty"`
 }
 
 type UpdateRubric struct {

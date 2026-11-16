@@ -140,6 +140,24 @@ Login uses Kinde's device authorization flow (RFC 8628) at
 opens the login page with a code filled in and waits for you to approve it. It
 does not run a local web server.
 
+## Target rubric metrics to agents
+
+Use `partite eval rubric get RUBRIC -o yaml` to save a rubric, then edit and apply the file. Add `tags` to a judge or computed metric assignment:
+
+```yaml
+name: support-quality
+metrics:
+  - computed_metric_key: latency_ms
+    tags:
+      - name: role
+        value: reviewer
+      - name: role
+        value: planner
+```
+
+A metric runs for an eligible agent if any tag matches both name and value exactly. Matching is case-sensitive. An empty list applies the metric without a tag restriction. Request-scoped judges ignore these tags.
+
+For an existing metric, omit `tags` to keep its tags. Use `tags: []` or `tags: null` to clear them. Supply a list to replace them. Apply the file with `partite eval rubric apply -f rubric.yaml`.
 ## Development
 
     GOWORK=off go build ./... && GOWORK=off go test ./...

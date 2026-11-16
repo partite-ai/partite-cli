@@ -5428,6 +5428,7 @@ type EnterpriseRubricMetricsRubricComputedMetric struct {
 	ScoreCeiling    *float64                                                  `json:"scoreCeiling"`
 	LowerIsBetter   *bool                                                     `json:"lowerIsBetter"`
 	ComputedWeight  *float64                                                  `json:"computedWeight"`
+	Tags            []*Tag                                                    `json:"tags"`
 }
 
 // GetTypename returns EnterpriseRubricMetricsRubricComputedMetric.Typename, and is useful for accessing the field via an interface.
@@ -5461,6 +5462,9 @@ func (v *EnterpriseRubricMetricsRubricComputedMetric) GetComputedWeight() *float
 	return v.ComputedWeight
 }
 
+// GetTags returns EnterpriseRubricMetricsRubricComputedMetric.Tags, and is useful for accessing the field via an interface.
+func (v *EnterpriseRubricMetricsRubricComputedMetric) GetTags() []*Tag { return v.Tags }
+
 // EnterpriseRubricMetricsRubricComputedMetricComputedMetric includes the requested fields of the GraphQL type ComputedMetric.
 type EnterpriseRubricMetricsRubricComputedMetricComputedMetric struct {
 	Key  string `json:"key"`
@@ -5482,6 +5486,7 @@ type EnterpriseRubricMetricsRubricJudgeMetric struct {
 	Complexity   *ModelComplexity                                    `json:"complexity"`
 	InputValues  *json.RawMessage                                    `json:"inputValues"`
 	JudgeWeight  *float64                                            `json:"judgeWeight"`
+	Tags         []*Tag                                              `json:"tags"`
 }
 
 // GetTypename returns EnterpriseRubricMetricsRubricJudgeMetric.Typename, and is useful for accessing the field via an interface.
@@ -5510,6 +5515,9 @@ func (v *EnterpriseRubricMetricsRubricJudgeMetric) GetInputValues() *json.RawMes
 
 // GetJudgeWeight returns EnterpriseRubricMetricsRubricJudgeMetric.JudgeWeight, and is useful for accessing the field via an interface.
 func (v *EnterpriseRubricMetricsRubricJudgeMetric) GetJudgeWeight() *float64 { return v.JudgeWeight }
+
+// GetTags returns EnterpriseRubricMetricsRubricJudgeMetric.Tags, and is useful for accessing the field via an interface.
+func (v *EnterpriseRubricMetricsRubricJudgeMetric) GetTags() []*Tag { return v.Tags }
 
 // EnterpriseRubricMetricsRubricJudgeMetricJudgeMetric includes the requested fields of the GraphQL type JudgeMetric.
 type EnterpriseRubricMetricsRubricJudgeMetricJudgeMetric struct {
@@ -15011,60 +15019,6 @@ func (v *NewRouteSegment) GetMeshVersionID() *string { return v.MeshVersionID }
 // GetWeight returns NewRouteSegment.Weight, and is useful for accessing the field via an interface.
 func (v *NewRouteSegment) GetWeight() int { return v.Weight }
 
-type NewRubric struct {
-	Name        string            `json:"name"`
-	Description *string           `json:"description,omitempty"`
-	Metrics     []NewRubricMetric `json:"metrics"`
-}
-
-// GetName returns NewRubric.Name, and is useful for accessing the field via an interface.
-func (v *NewRubric) GetName() string { return v.Name }
-
-// GetDescription returns NewRubric.Description, and is useful for accessing the field via an interface.
-func (v *NewRubric) GetDescription() *string { return v.Description }
-
-// GetMetrics returns NewRubric.Metrics, and is useful for accessing the field via an interface.
-func (v *NewRubric) GetMetrics() []NewRubricMetric { return v.Metrics }
-
-type NewRubricMetric struct {
-	ComputedMetricKey *string          `json:"computedMetricKey,omitempty"`
-	JudgeMetricID     *string          `json:"judgeMetricID,omitempty"`
-	TrialCount        *int             `json:"trialCount,omitempty"`
-	Complexity        *ModelComplexity `json:"complexity,omitempty"`
-	InputValues       *json.RawMessage `json:"inputValues,omitempty"`
-	ScoreFloor        *float64         `json:"scoreFloor,omitempty"`
-	ScoreCeiling      *float64         `json:"scoreCeiling,omitempty"`
-	LowerIsBetter     *bool            `json:"lowerIsBetter,omitempty"`
-	Weight            *float64         `json:"weight,omitempty"`
-}
-
-// GetComputedMetricKey returns NewRubricMetric.ComputedMetricKey, and is useful for accessing the field via an interface.
-func (v *NewRubricMetric) GetComputedMetricKey() *string { return v.ComputedMetricKey }
-
-// GetJudgeMetricID returns NewRubricMetric.JudgeMetricID, and is useful for accessing the field via an interface.
-func (v *NewRubricMetric) GetJudgeMetricID() *string { return v.JudgeMetricID }
-
-// GetTrialCount returns NewRubricMetric.TrialCount, and is useful for accessing the field via an interface.
-func (v *NewRubricMetric) GetTrialCount() *int { return v.TrialCount }
-
-// GetComplexity returns NewRubricMetric.Complexity, and is useful for accessing the field via an interface.
-func (v *NewRubricMetric) GetComplexity() *ModelComplexity { return v.Complexity }
-
-// GetInputValues returns NewRubricMetric.InputValues, and is useful for accessing the field via an interface.
-func (v *NewRubricMetric) GetInputValues() *json.RawMessage { return v.InputValues }
-
-// GetScoreFloor returns NewRubricMetric.ScoreFloor, and is useful for accessing the field via an interface.
-func (v *NewRubricMetric) GetScoreFloor() *float64 { return v.ScoreFloor }
-
-// GetScoreCeiling returns NewRubricMetric.ScoreCeiling, and is useful for accessing the field via an interface.
-func (v *NewRubricMetric) GetScoreCeiling() *float64 { return v.ScoreCeiling }
-
-// GetLowerIsBetter returns NewRubricMetric.LowerIsBetter, and is useful for accessing the field via an interface.
-func (v *NewRubricMetric) GetLowerIsBetter() *bool { return v.LowerIsBetter }
-
-// GetWeight returns NewRubricMetric.Weight, and is useful for accessing the field via an interface.
-func (v *NewRubricMetric) GetWeight() *float64 { return v.Weight }
-
 type NewSchedule struct {
 	Name                  string          `json:"name"`
 	Description           *string         `json:"description,omitempty"`
@@ -15558,12 +15512,14 @@ const (
 	RequestStatusActive    RequestStatus = "ACTIVE"
 	RequestStatusCancelled RequestStatus = "CANCELLED"
 	RequestStatusComplete  RequestStatus = "COMPLETE"
+	RequestStatusFailed    RequestStatus = "FAILED"
 )
 
 var AllRequestStatus = []RequestStatus{
 	RequestStatusActive,
 	RequestStatusCancelled,
 	RequestStatusComplete,
+	RequestStatusFailed,
 }
 
 // RevokeMcpConnectionTunnelKeyResponse is returned by RevokeMcpConnectionTunnelKey on success.
@@ -18442,7 +18398,8 @@ type TraceFilter struct {
 	// Traces created at or before this time.
 	CreatedBefore *string `json:"createdBefore,omitempty"`
 	// Traces with a request in this status: ACTIVE for requests still running or
-	// waiting on the user, CANCELLED for cancelled ones, COMPLETE for finished ones.
+	// waiting on the user, CANCELLED for cancelled ones, COMPLETE for finished ones,
+	// FAILED for ones that ended with an error.
 	Status *RequestStatus `json:"status,omitempty"`
 }
 
@@ -19186,11 +19143,11 @@ func (v *__CreateModelSetInput) GetInput() *NewModelSet { return v.Input }
 
 // __CreateRubricInput is used internally by genqlient
 type __CreateRubricInput struct {
-	Input NewRubric `json:"input"`
+	Input *NewRubric `json:"input"`
 }
 
 // GetInput returns __CreateRubricInput.Input, and is useful for accessing the field via an interface.
-func (v *__CreateRubricInput) GetInput() NewRubric { return v.Input }
+func (v *__CreateRubricInput) GetInput() *NewRubric { return v.Input }
 
 // __CreateSkillInput is used internally by genqlient
 type __CreateSkillInput struct {
@@ -19398,11 +19355,11 @@ func (v *__EnterpriseCreateMonitorInput) GetInput() NewEvalMeshMonitor { return 
 
 // __EnterpriseCreateRubricInput is used internally by genqlient
 type __EnterpriseCreateRubricInput struct {
-	Input NewRubric `json:"input"`
+	Input *NewRubric `json:"input"`
 }
 
 // GetInput returns __EnterpriseCreateRubricInput.Input, and is useful for accessing the field via an interface.
-func (v *__EnterpriseCreateRubricInput) GetInput() NewRubric { return v.Input }
+func (v *__EnterpriseCreateRubricInput) GetInput() *NewRubric { return v.Input }
 
 // __EnterpriseCreateScheduleInput is used internally by genqlient
 type __EnterpriseCreateScheduleInput struct {
@@ -24329,7 +24286,7 @@ fragment RubricDetails on Rubric {
 func CreateRubric(
 	ctx_ context.Context,
 	client_ graphql.Client,
-	input NewRubric,
+	input *NewRubric,
 ) (data_ *CreateRubricResponse, err_ error) {
 	req_ := &graphql.Request{
 		OpName: "CreateRubric",
@@ -25274,6 +25231,7 @@ fragment EnterpriseRubric on Rubric {
 			complexity
 			inputValues
 			judgeWeight: weight
+			tags
 		}
 		... on RubricComputedMetric {
 			computedEntryID: id
@@ -25285,6 +25243,7 @@ fragment EnterpriseRubric on Rubric {
 			scoreCeiling
 			lowerIsBetter
 			computedWeight: weight
+			tags
 		}
 	}
 }
@@ -25293,7 +25252,7 @@ fragment EnterpriseRubric on Rubric {
 func EnterpriseCreateRubric(
 	ctx_ context.Context,
 	client_ graphql.Client,
-	input NewRubric,
+	input *NewRubric,
 ) (data_ *EnterpriseCreateRubricResponse, err_ error) {
 	req_ := &graphql.Request{
 		OpName: "EnterpriseCreateRubric",
@@ -25975,6 +25934,7 @@ fragment EnterpriseRubric on Rubric {
 			complexity
 			inputValues
 			judgeWeight: weight
+			tags
 		}
 		... on RubricComputedMetric {
 			computedEntryID: id
@@ -25986,6 +25946,7 @@ fragment EnterpriseRubric on Rubric {
 			scoreCeiling
 			lowerIsBetter
 			computedWeight: weight
+			tags
 		}
 	}
 }
@@ -26425,6 +26386,7 @@ fragment EnterpriseRubric on Rubric {
 			complexity
 			inputValues
 			judgeWeight: weight
+			tags
 		}
 		... on RubricComputedMetric {
 			computedEntryID: id
@@ -26436,6 +26398,7 @@ fragment EnterpriseRubric on Rubric {
 			scoreCeiling
 			lowerIsBetter
 			computedWeight: weight
+			tags
 		}
 	}
 }
@@ -26687,6 +26650,7 @@ fragment EnterpriseRubric on Rubric {
 			complexity
 			inputValues
 			judgeWeight: weight
+			tags
 		}
 		... on RubricComputedMetric {
 			computedEntryID: id
@@ -26698,6 +26662,7 @@ fragment EnterpriseRubric on Rubric {
 			scoreCeiling
 			lowerIsBetter
 			computedWeight: weight
+			tags
 		}
 	}
 }

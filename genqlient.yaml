@@ -171,6 +171,8 @@ bindings:
     type: "*github.com/partite-ai/partite-cli/internal/graphql.NewMemoryInteractionProfile"
   UpdateJudgeMetric:
     type: "*github.com/partite-ai/partite-cli/internal/graphql.UpdateJudgeMetric"
+  NewRubric:
+    type: "*github.com/partite-ai/partite-cli/internal/graphql.NewRubric"
   UpdateRubric:
     type: "*github.com/partite-ai/partite-cli/internal/graphql.UpdateRubric"
   UpdateMemoryInteractionProfile:

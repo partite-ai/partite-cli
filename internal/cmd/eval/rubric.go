@@ -24,14 +24,20 @@ type Rubric struct {
 	UpdatedAt   string         `json:"updated_at,omitempty"`
 }
 
+type rubricAgentTag struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 // RubricMetric is one metric of a rubric. Exactly one of JudgeMetricID and
 // ComputedMetricKey is set. On input, JudgeMetricID may be a name and
 // ComputedMetricKey may be a computed metric's name.
 type RubricMetric struct {
-	JudgeMetricID     string   `json:"judge_metric_id,omitempty"`
-	ComputedMetricKey string   `json:"computed_metric_key,omitempty"`
-	MetricName        string   `json:"metric_name,omitempty"`
-	Weight            *float64 `json:"weight,omitempty"`
+	JudgeMetricID     string          `json:"judge_metric_id,omitempty"`
+	ComputedMetricKey string          `json:"computed_metric_key,omitempty"`
+	MetricName        string          `json:"metric_name,omitempty"`
+	Weight            *float64        `json:"weight,omitempty"`
+	Tags              json.RawMessage `json:"tags"`
 
 	// Judge metrics only.
 	TrialCount  *int            `json:"trial_count,omitempty"`
@@ -81,11 +87,17 @@ func rubricFromAPI(d gql.EnterpriseRubric) Rubric {
 		switch m := metric.(type) {
 		case *gql.EnterpriseRubricMetricsRubricJudgeMetric:
 			trials := m.TrialCount
+			tags := make([]rubricAgentTag, 0, len(m.Tags))
+			for _, tag := range m.Tags {
+				tags = append(tags, rubricAgentTag{Name: tag.Name, Value: tag.Value})
+			}
+			rawTags, _ := json.Marshal(tags)
 			entry := RubricMetric{
 				JudgeMetricID: m.JudgeMetric.Id,
 				MetricName:    m.JudgeMetric.Name,
 				Weight:        m.JudgeWeight,
 				TrialCount:    &trials,
+				Tags:          rawTags,
 				entryID:       m.JudgeEntryID,
 			}
 			if m.Complexity != nil {
@@ -97,10 +109,16 @@ func rubricFromAPI(d gql.EnterpriseRubric) Rubric {
 			}
 			r.Metrics = append(r.Metrics, entry)
 		case *gql.EnterpriseRubricMetricsRubricComputedMetric:
+			tags := make([]rubricAgentTag, 0, len(m.Tags))
+			for _, tag := range m.Tags {
+				tags = append(tags, rubricAgentTag{Name: tag.Name, Value: tag.Value})
+			}
+			rawTags, _ := json.Marshal(tags)
 			r.Metrics = append(r.Metrics, RubricMetric{
 				ComputedMetricKey: m.ComputedMetric.Key,
 				MetricName:        m.ComputedMetric.Name,
 				Weight:            m.ComputedWeight,
+				Tags:              rawTags,
 				LowerIsBetter:     m.LowerIsBetter,
 				ScoreFloor:        m.ScoreFloor,
 				ScoreCeiling:      m.ScoreCeiling,
@@ -116,6 +134,12 @@ func isEmptyJSONObject(raw []byte) bool {
 	return json.Unmarshal(raw, &object) == nil && object != nil && len(object) == 0
 }
 
+func decodeTags(raw json.RawMessage, tags *[]*rubricAgentTag) error {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	return decoder.Decode(tags)
+}
+
 // checkRubricMetric checks the fields of one metric and normalizes them: the
 // complexity is upper-cased and input values given as a JSON string are
 // unwrapped. It does not resolve names.
@@ -125,6 +149,17 @@ func checkRubricMetric(m RubricMetric) (RubricMetric, error) {
 		return m, cmdutil.UsageError("a rubric metric has both judge_metric_id %q and computed_metric_key %q; give one", m.JudgeMetricID, m.ComputedMetricKey)
 	case m.JudgeMetricID == "" && m.ComputedMetricKey == "":
 		return m, cmdutil.UsageError("a rubric metric needs judge_metric_id or computed_metric_key")
+	}
+	if len(m.Tags) > 0 && string(bytes.TrimSpace(m.Tags)) != "null" {
+		var tags []*rubricAgentTag
+		if err := decodeTags(m.Tags, &tags); err != nil || tags == nil {
+			return m, cmdutil.UsageError("metric %s: tags must be a list of name/value pairs", m.label())
+		}
+		for _, tag := range tags {
+			if tag == nil || tag.Name == "" || tag.Value == "" {
+				return m, cmdutil.UsageError("metric %s: tags require a non-empty name and value", m.label())
+			}
+		}
 	}
 	if m.isJudge() {
 		if m.LowerIsBetter != nil || m.ScoreFloor != nil || m.ScoreCeiling != nil {
@@ -207,6 +242,7 @@ func resolveRubricMetrics(ctx context.Context, app *cmdutil.App, metrics []Rubri
 // the fields of its kind are set.
 func newRubricMetric(m RubricMetric) gql.NewRubricMetric {
 	in := gql.NewRubricMetric{Weight: m.Weight}
+	in.Tags = m.Tags
 	if m.isJudge() {
 		in.JudgeMetricID = &m.JudgeMetricID
 		in.TrialCount = m.TrialCount
@@ -223,6 +259,7 @@ func newRubricMetric(m RubricMetric) gql.NewRubricMetric {
 
 func updateRubricMetric(entryID string, m RubricMetric) gql.UpdateRubricMetric {
 	in := gql.UpdateRubricMetric{ID: entryID, Weight: m.Weight}
+	in.Tags = m.Tags
 	if m.isJudge() {
 		in.TrialCount = m.TrialCount
 		in.Complexity = complexityPtr(m.Complexity)
@@ -361,6 +398,14 @@ func describeRubricMetric(m RubricMetric) string {
 	if m.Weight != nil {
 		parts = append(parts, "weight "+formatScore(m.Weight))
 	}
+	var tags []rubricAgentTag
+	if err := json.Unmarshal(m.Tags, &tags); err == nil && len(tags) > 0 {
+		labels := make([]string, 0, len(tags))
+		for _, tag := range tags {
+			labels = append(labels, tag.Name+"="+tag.Value)
+		}
+		parts = append(parts, "agent tags "+strings.Join(labels, " or "))
+	}
 	if m.isJudge() {
 		if m.TrialCount != nil {
 			parts = append(parts, cmdutil.Plural(*m.TrialCount, "trial"))
@@ -405,11 +450,16 @@ Simple rubrics can be made with flags. For the other settings, use a file:
       trial_count: 3                   # judge it 3 times and average
       complexity: HIGH                 # override the metric's complexity
       input_values: {policy: "..."}    # values for the metric's input fields
+      tags:                       # match any name/value pair
+        - {name: role, value: reviewer}
     - computed_metric_key: latency_ms  # a computed metric's key or name
       weight: 1
       lower_is_better: true
       score_floor: 0
-      score_ceiling: 10000`
+      score_ceiling: 10000
+
+For an existing metric, omit tags to keep its tags. Use [] or null to
+clear them. Matching is exact and request-scoped judges ignore agent tags.`
 
 func newRubric(app *cmdutil.App) *cobra.Command {
 	cmd := &cobra.Command{
@@ -455,7 +505,7 @@ func createRubric(ctx context.Context, app *cmdutil.App, name, description strin
 	for _, m := range metrics {
 		in.Metrics = append(in.Metrics, newRubricMetric(m))
 	}
-	resp, err := gql.EnterpriseCreateRubric(ctx, c, in)
+	resp, err := gql.EnterpriseCreateRubric(ctx, c, &in)
 	if err != nil {
 		return Rubric{}, err
 	}

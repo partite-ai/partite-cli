@@ -115,6 +115,7 @@ fragment EnterpriseRubric on Rubric {
       complexity
       inputValues
       judgeWeight: weight
+      tags
     }
     ... on RubricComputedMetric {
       computedEntryID: id
@@ -126,6 +127,7 @@ fragment EnterpriseRubric on Rubric {
       scoreCeiling
       lowerIsBetter
       computedWeight: weight
+      tags
     }
   }
 }
