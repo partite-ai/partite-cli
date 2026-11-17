@@ -310,16 +310,17 @@ type UpdateSkill struct {
 	Source Optional[SkillSource] `json:"source,omitzero"`
 }
 
-// SkillSource is a skill folder given as its files. The provider never sends
-// a zip, so the archive form of the API is left out.
+// SkillSource is a skill folder given as its files. The CLI never sends a
+// zip, so the archive form of the API is left out.
 type SkillSource struct {
 	Files []SkillSourceFile `json:"files"`
 }
 
-// SkillSourceFile is one file of a skill folder, given as text.
+// SkillSourceFile is one file of a skill folder, given as the id of an upload
+// holding it.
 type SkillSourceFile struct {
-	Path string `json:"path"`
-	Text string `json:"text"`
+	Path          string `json:"path"`
+	ContentUpload string `json:"contentUpload"`
 }
 
 type NewParticleAgentAssociation struct {

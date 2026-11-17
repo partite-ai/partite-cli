@@ -46,9 +46,9 @@ func fakeMesh(t *testing.T, status int) (*httptest.Server, *upload) {
 			t.Errorf("operation %q, want ToolsCreateWorkspaceFileUpload", req.OperationName)
 		}
 		got.variables = req.Variables
-		fmt.Fprintf(w, `{"data":{"createWorkspaceFileUpload":{"url":%q,"expiresAt":"2026-11-12T00:00:00Z"}}}`, srv.URL+"/file-uploads/tok")
+		fmt.Fprintf(w, `{"data":{"createWorkspaceFileUpload":{"url":%q,"expiresAt":"2026-11-12T00:00:00Z"}}}`, srv.URL+"/uploads/tok")
 	})
-	mux.HandleFunc("PUT /file-uploads/tok", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("PUT /uploads/tok", func(w http.ResponseWriter, r *http.Request) {
 		data, _ := io.ReadAll(r.Body)
 		got.body, got.contentLength, got.authorization = string(data), r.ContentLength, r.Header.Get("Authorization")
 		if status != http.StatusCreated {

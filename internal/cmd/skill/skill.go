@@ -36,7 +36,9 @@ type Skill struct {
 	UpdatedAt    string            `json:"updated_at,omitempty"`
 }
 
-func fromAPI(d gql.SkillDetails) Skill {
+// fromAPI reads a skill the server returned. A file too large for its content
+// to be returned is read from its download URL.
+func fromAPI(ctx context.Context, d gql.SkillDetails) (Skill, error) {
 	s := Skill{
 		ID:           d.Id,
 		Name:         d.Name,
@@ -48,9 +50,20 @@ func fromAPI(d gql.SkillDetails) Skill {
 		UpdatedAt:    d.UpdatedAt,
 	}
 	for _, f := range d.Files {
-		s.Files[f.Path] = f.Content
+		switch {
+		case f.Content != nil:
+			s.Files[f.Path] = *f.Content
+		case f.DownloadURL != nil:
+			content, err := gql.Download(ctx, cmdutil.PlainHTTP(), *f.DownloadURL)
+			if err != nil {
+				return Skill{}, fmt.Errorf("read %s: %w", f.Path, err)
+			}
+			s.Files[f.Path] = string(content)
+		default:
+			return Skill{}, fmt.Errorf("the server returned no content for %s", f.Path)
+		}
 	}
-	return s
+	return s, nil
 }
 
 // Resource is exported so that agents can refer to skills by name.
@@ -92,7 +105,7 @@ var Resource = &cmdutil.Resource[Skill]{
 		if resp.Skill == nil {
 			return Skill{}, cmdutil.NotFound("skill", id, "partite skill list")
 		}
-		return fromAPI(*resp.Skill), nil
+		return fromAPI(ctx, *resp.Skill)
 	},
 	Delete: func(ctx context.Context, app *cmdutil.App, ids []string) error {
 		c, err := app.GQL()
@@ -134,15 +147,33 @@ func sortedPaths(files map[string]string) []string {
 	return paths
 }
 
-func toSource(files map[string]string) (gql.SkillSource, error) {
+// toSource uploads each file, and returns the files as the source of a skill.
+func toSource(ctx context.Context, app *cmdutil.App, files map[string]string) (gql.SkillSource, error) {
 	if _, ok := files["SKILL.md"]; !ok {
 		return gql.SkillSource{}, cmdutil.UsageError("a skill needs a SKILL.md file")
 	}
 	src := gql.SkillSource{Files: make([]gql.SkillSourceFile, 0, len(files))}
 	for _, p := range sortedPaths(files) {
-		src.Files = append(src.Files, gql.SkillSourceFile{Path: p, Text: files[p]})
+		f, err := uploadFile(ctx, app, p, files[p])
+		if err != nil {
+			return gql.SkillSource{}, err
+		}
+		src.Files = append(src.Files, f)
 	}
 	return src, nil
+}
+
+// uploadFile uploads the content of the file at path in a skill folder.
+func uploadFile(ctx context.Context, app *cmdutil.App, path, content string) (gql.SkillSourceFile, error) {
+	c, err := app.GQL()
+	if err != nil {
+		return gql.SkillSourceFile{}, err
+	}
+	upload, err := gql.Upload(ctx, c, cmdutil.PlainHTTP(), strings.NewReader(content), int64(len(content)), nil)
+	if err != nil {
+		return gql.SkillSourceFile{}, fmt.Errorf("%s: %w", path, err)
+	}
+	return gql.SkillSourceFile{Path: path, ContentUpload: upload}, nil
 }
 
 // readDir reads every text file under dir, by its slash-separated path within
@@ -208,7 +239,7 @@ give it to an agent with partite agent update AGENT --skill NAME.`,
 		newCreate(app),
 		newUpdate(app),
 		Resource.ApplyCmd(app, "  partite skill apply -f pdf-forms.yaml", func(ctx context.Context, spec Skill, id string) (Skill, error) {
-			src, err := toSource(spec.Files)
+			src, err := toSource(ctx, app, spec.Files)
 			if err != nil {
 				return Skill{}, err
 			}
@@ -234,7 +265,7 @@ func create(ctx context.Context, app *cmdutil.App, name string, src gql.SkillSou
 	if err != nil {
 		return Skill{}, err
 	}
-	return fromAPI(resp.CreateSkill), nil
+	return fromAPI(ctx, resp.CreateSkill)
 }
 
 func update(ctx context.Context, app *cmdutil.App, id string, in *gql.UpdateSkill) (Skill, error) {
@@ -246,7 +277,7 @@ func update(ctx context.Context, app *cmdutil.App, id string, in *gql.UpdateSkil
 	if err != nil {
 		return Skill{}, err
 	}
-	return fromAPI(resp.UpdateSkill), nil
+	return fromAPI(ctx, resp.UpdateSkill)
 }
 
 func newCreate(app *cmdutil.App) *cobra.Command {
@@ -285,7 +316,7 @@ folder is uploaded; hidden files and binary files are skipped.`,
 			if len(spec.Files) == 0 {
 				return cmdutil.UsageError("pass --dir with the skill's folder")
 			}
-			src, err := toSource(spec.Files)
+			src, err := toSource(cmd.Context(), app, spec.Files)
 			if err != nil {
 				return err
 			}
@@ -340,7 +371,7 @@ Every agent that uses the skill gets the new files.`,
 				if err != nil {
 					return err
 				}
-				src, err := toSource(files)
+				src, err := toSource(cmd.Context(), app, files)
 				if err != nil {
 					return err
 				}
@@ -366,7 +397,11 @@ Every agent that uses the skill gets the new files.`,
 					if !utf8.Valid(data) {
 						return cmdutil.UsageError("%s is not a text file", local)
 					}
-					edit.Put = append(edit.Put, gql.SkillSourceFile{Path: filepath.ToSlash(skillPath), Text: string(data)})
+					file, err := uploadFile(cmd.Context(), app, filepath.ToSlash(skillPath), string(data))
+					if err != nil {
+						return err
+					}
+					edit.Put = append(edit.Put, file)
 				}
 				c, err := app.GQL()
 				if err != nil {
@@ -376,7 +411,9 @@ Every agent that uses the skill gets the new files.`,
 				if err != nil {
 					return err
 				}
-				s = fromAPI(resp.EditSkillFiles)
+				if s, err = fromAPI(cmd.Context(), resp.EditSkillFiles); err != nil {
+					return err
+				}
 			}
 			app.Printer().Done("Updated skill %s.", s.Name)
 			if app.Format() == output.Table {
@@ -413,7 +450,10 @@ it; none use the copy until you add it to them.`,
 			if err != nil {
 				return err
 			}
-			s := fromAPI(resp.CopySkill)
+			s, err := fromAPI(cmd.Context(), resp.CopySkill)
+			if err != nil {
+				return err
+			}
 			app.Printer().Done("Copied skill %s to %s (%s).", args[0], s.Name, s.ID)
 			if app.Format() == output.Table {
 				return nil

@@ -731,6 +731,7 @@ fragment SkillDetails on Skill {
   files {
     path
     content
+    downloadURL
   }
   createdAt
   updatedAt
@@ -819,6 +820,24 @@ query GetParticleArtifact($id: ParticleArtifactID!) {
   # @genqlient(flatten: true)
   particleArtifact(id: $id) {
     ...ParticleArtifactDetails
+  }
+}
+
+mutation UploadParticleArtifact($upload: ID!) {
+  # @genqlient(flatten: true)
+  uploadParticleArtifact(upload: $upload) {
+    ...ParticleArtifactDetails
+  }
+}
+
+mutation CreateUpload($size: Int!, $sha256: String) {
+  createUpload(size: $size, sha256: $sha256) {
+    id
+    url
+    headers {
+      name
+      value
+    }
   }
 }
 

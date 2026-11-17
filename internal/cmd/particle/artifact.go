@@ -2,11 +2,13 @@ package particle
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net/url"
+	"io"
+	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/partite-ai/partite-cli/internal/cmdutil"
@@ -178,19 +180,28 @@ func upload(ctx context.Context, app *cmdutil.App, path string) (Artifact, error
 		return Artifact{}, cmdutil.UsageError("open %s: %s", path, err)
 	}
 	defer f.Close()
-	hc, err := app.HTTP()
+	hash := sha256.New()
+	size, err := io.Copy(hash, f)
+	if err != nil {
+		return Artifact{}, cmdutil.UsageError("read %s: %s", path, err)
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return Artifact{}, err
+	}
+	c, err := app.GQL()
 	if err != nil {
 		return Artifact{}, err
 	}
-	u, err := url.Parse(app.BaseURL() + "/graphql")
+	digest := hex.EncodeToString(hash.Sum(nil))
+	uploadID, err := gql.Upload(ctx, c, http.DefaultClient, f, size, &digest)
 	if err != nil {
 		return Artifact{}, err
 	}
-	d, err := gql.UploadParticleArtifact(ctx, hc, u, filepath.Base(path), f)
+	resp, err := gql.UploadParticleArtifact(ctx, c, uploadID)
 	if err != nil {
 		return Artifact{}, err
 	}
-	return artifactFromAPI(d), nil
+	return artifactFromAPI(resp.UploadParticleArtifact), nil
 }
 
 // artifactID returns ref when it is an artifact id, and otherwise uploads the
