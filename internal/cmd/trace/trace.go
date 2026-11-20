@@ -78,7 +78,7 @@ was started with tracing off.
 
 A trace is named by its id (ttrc_...) or by its conversation's id (rcnv_...).`,
 	}
-	cmd.AddCommand(newList(app), newGet(app), newView(app), newDelete(app))
+	cmd.AddCommand(newList(app), newGet(app), newView(app), newDelete(app), newUpload(app))
 	return cmd
 }
 
